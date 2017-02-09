@@ -4,7 +4,7 @@ class ApiController extends BaseController {
     parent::__construct();
 
     if (!self::checkCSRFToken()) {
-      $this->jsonError('incorrect CSRF token');
+      $this->error('incorrect CSRF token');
       exit;
     }
   }
