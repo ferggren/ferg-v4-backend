@@ -119,6 +119,7 @@ class Feed_CliController extends CliController {
 
     $res = MediaPages::where('page_visible', '=', '1');
     $res->whereAnd('page_deleted', '=', '0');
+    $res->whereAnd('page_type', 'IN', array('blog', 'events'));
 
     foreach ($res->get() as $page) {
       $info = array(

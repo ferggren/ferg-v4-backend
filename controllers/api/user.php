@@ -9,9 +9,7 @@ class ApiUser_Controller extends ApiController {
       return $this->success(array());
     }
 
-    $user = User::getUser();
-
-    return $this->success($user->export(true));
+    return $this->success(User::getUser()->export(true));
   }
 
   public function actionLogout() {

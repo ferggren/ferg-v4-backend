@@ -61,7 +61,7 @@ $config = array(
   'users_pulse' => 60,
 
   // dump html performance debug
-  'dump_perf_debug' => true,
+  'dump_perf_debug' => false,
 
   // Analytics code
   'footer_counters' => array(
