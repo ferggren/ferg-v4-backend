@@ -6,10 +6,12 @@ class PhotoLibrary extends Database {
 
   public function export($full_info = false) {
     $export = array(
-      'id'            => (int)$this->photo_id,
-      'gps'           => $this->photo_gps ? $this->photo_gps : "",
-      'taken'         => $this->photo_taken ? $this->photo_taken : "",
-      'timestamp'     => (int)$this->photo_taken_timestamp,
+      'id' => (int)$this->photo_id,
+      'gps' => $this->photo_gps ? $this->photo_gps : "",
+      'taken' => $this->photo_taken ? $this->photo_taken : "",
+      'timestamp' => (int)$this->photo_taken_timestamp,
+      'width' => 0,
+      'height' => 0,
       
       'tags' => array(
         'iso'           => $this->photo_iso ? $this->photo_iso : "",
@@ -22,7 +24,6 @@ class PhotoLibrary extends Database {
         'efl'           => $this->photo_efl ? $this->photo_efl : "",
       ),
     );
-
 
     if ($full_info) {
       $export['added']         = (int)$this->photo_added;
@@ -42,6 +43,8 @@ class PhotoLibrary extends Database {
 
     if (preg_match('#^(\d{1,5})x(\d{1,5})$#', $this->photo_size, $data)) {
       $export['ratio'] = round($data[1] / $data[2], 2);
+      $export['width'] = (int)$data[1];
+      $export['height'] = (int)$data[2];
     }
 
     $w = 500; $h = 250;
