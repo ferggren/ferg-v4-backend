@@ -19,15 +19,9 @@ class StorageFiles extends Database {
       'size' => (int)$this->file_size,
       'preview' => !!$this->file_preview,
       'hash' => $this->file_hash,
-      'group' => false,
+      'group' => $this->group,
       'link_download' => $this->getDownloadLink(),
     );
-
-    if ($this->group_id) {
-      $info['group'] = self::__getGroupName(
-        $this->group_id
-      );
-    }
 
     if ($this->file_preview) {
       $info['link_preview'] = $this->getPreviewLink(
@@ -88,25 +82,22 @@ class StorageFiles extends Database {
   /**
    *  Check if user has access
    *
-   *  @param {string} user_id User id (default = current user)
    *  @return {boolean} Access status
    */
-  public function userHasAccess($user_id = false) {
+  public function userHasAccess() {
     if ($this->file_deleted) {
       return false;
-    }
-
-    if (!is_numeric($user_id)) {
-      if (User::isAuthenticated()) {
-        $user_id = User::get_user_id();
-      }
     }
 
     if ($this->file_access == 'public') {
       return true;
     }
 
-    return $user_id == $this->user_id;
+    if (User::isAuthenticated() && User::hasAccess('admin')) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -222,35 +213,6 @@ class StorageFiles extends Database {
     }
 
     return 'other';
-  }
-
-  /**
-   *  Return group name
-   *
-   *  @param {number} group_id Group id
-   *  @return {string} Group name
-   */
-  protected static function __getGroupName($group_id) {
-    static $groups = array();
-
-    if (!$group_id) {
-      return false;
-    }
-
-    if (isset($groups[$group_id])) {
-      return $groups[$group_id];
-    }
-
-    $group = Database::from('storage_groups');
-    $group->whereAnd('group_id', '=', $group_id);
-
-    $group = $group->get();
-
-    if (!is_array($group) || count($group) != 1) {
-      return $groups[$group_id] = false;
-    }
-
-    return $groups[$group_id] = $group[0]->group_name;
   }
 
   /**

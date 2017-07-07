@@ -24,10 +24,8 @@ class ApiStorage_Controller extends ApiController {
       return $this->error('ivalid_file_id');
     }
 
-    if ($file->user_id != User::get_user_id()) {
-      if (!User::hasAccess('admin')) {
-        return $this->error('ivalid_file_id');
-      }
+    if (!User::hasAccess('admin')) {
+      return $this->error('ivalid_file_id');
     }
 
     $file->file_deleted = 1;
@@ -53,10 +51,8 @@ class ApiStorage_Controller extends ApiController {
       return $this->error('ivalid_file_id');
     }
 
-    if ($file->user_id != User::get_user_id()) {
-      if (!User::hasAccess('admin')) {
-        return $this->error('ivalid_file_id');
-      }
+    if (!User::hasAccess('admin')) {
+      return $this->error('ivalid_file_id');
     }
 
     $file->file_deleted = 0;
@@ -72,40 +68,20 @@ class ApiStorage_Controller extends ApiController {
    *  If admin_mode is enabled (and user is admin),
    *  Function returns statistics about all files
    *
-   *  @param {boolean} admin_mode Return statistic about all files
    *  @param {string} media List of comma-separated media types
    *  @return {object} Media and group statistic
    */
-  public function actionGetMediaStats($admin_mode = false, $media = '', $group = '') {
+  public function actionGetMediaStats($media = '', $group = '') {
     if (!User::isAuthenticated()) {
       return $this->success(array());
     }
 
-    $admin_mode = $admin_mode == 'enabled';
-    if ($admin_mode && !User::hasAccess('admin')) {
-      $admin_mode = false;
-    }
-
-    $group_id = false;
-    if (!$admin_mode && $group) {
-      $group_id = -1;
-
-      foreach (self::_loadUserGroups() as $user_group) {
-        if ($user_group['name'] != $group) {
-          continue;
-        }
-
-        $group_id = (int)$user_group['id'];
-        break;
-      }
-    }
-
-    if ($group_id == -1) {
+    if (!User::hasAccess('admin')) {
       return $this->success(array());
     }
 
     $media = self::_validateMedia($media);
-    $media = self::_loadMediaStats($media, $admin_mode, $group_id);
+    $media = self::_loadMediaStats($media, $group);
 
     return $this->success($media);
   }
@@ -133,21 +109,12 @@ class ApiStorage_Controller extends ApiController {
       return $this->success($ret);
     }
 
-    // if group was not created yet
-    if ($search['group_id'] == -1) {
-      return $this->success($ret);
-    }
-
     // where query
     $where = array();
 
     // User id & user group
-    if (!$search['admin_mode']) {
-      $where[] = 'user_id = "' . Database::escape(User::get_user_id()) . '"';
-
-      if ($search['group_id'] !== false) {
-        $where[] = 'group_id = "' . Database::escape($search['group_id']) . '"';
-      }
+    if ($search['group']) {
+      $where[] = 'file_group = "' . Database::escape($search['group']) . '"';
     }
 
     // media
@@ -222,6 +189,14 @@ class ApiStorage_Controller extends ApiController {
    *  @return {object} Uploaded file info
    */
   public function actionUpload() {
+    if (!User::isAuthenticated()) {
+      return $this->error('access_denied');
+    }
+
+    if (!User::hasAccess('admin')) {
+      return $this->error('access_denied');
+    }
+
     // If file even uploaded?
     if (!isset($_FILES) || !is_array($_FILES)) {
       return $this->error('error_file_not_uploaded');
@@ -270,17 +245,6 @@ class ApiStorage_Controller extends ApiController {
 
       return $this->error('error_file_upload_error');
     }
-
-    // get user id
-    if (!($file_info['user_id'] = self::_getUserId())) {
-      return $this->error('error_file_upload_error');
-    }
-
-    // get group id
-    if (!($file_info['group_id'] = self::_getGroupId($file_info))) {
-      return $this->error('error_file_upload_error');
-    }
-
     // get file hash
     if (!($file_info['hash'] = self::_makeFileHash($file_info))) {
       return $this->error('error_file_upload_error');
@@ -294,8 +258,7 @@ class ApiStorage_Controller extends ApiController {
     // create entry
     $file = new StorageFiles;
 
-    $file->user_id = $file_info['user_id'];
-    $file->group_id = $file_info['group_id'];
+    $file->file_group = $file_info['group'];
     $file->file_hash = $file_info['hash'];
     $file->file_name = $file_info['name'];
     $file->file_media = $file_info['media'];
@@ -358,60 +321,22 @@ class ApiStorage_Controller extends ApiController {
   }
 
   /**
-   *  Return user groups
-   *
-   *  @return {array} List of user groups
-  */
-  protected static function _loadUserGroups() {
-    if (!User::isAuthenticated()) {
-      return array();
-    }
-
-    $groups = Database::from('storage_groups');
-    $groups->whereAnd('user_id', '=', User::get_user_id());
-
-    if (!($groups = $groups->get())) {
-      return array();
-    }
-
-    $ret = array();
-
-    foreach ($groups as $group) {
-      $ret[] = array(
-        'id' => $group->group_id,
-        'name' => $group->group_name,
-      );
-    }
-
-    return $ret;
-  }
-
-  /**
    *  Return user/global media types statistics
    *
    *  @param {array} user_media List of media types
-   *  @param {boolean} global Return all statistics
    *  @return {array} List of media types with statistics
    */
-  protected static function _loadMediaStats($user_media, $global = false, $group_id = false) {
+  protected static function _loadMediaStats($user_media, $group = false) {
     $stats = array();
 
     if (!count($user_media) || !User::isAuthenticated()) {
       return $stats;
     }
 
-    if (!User::hasAccess('admin')) {
-      $global = false;
-    }
-
     $where = array();
 
-    if (!$global) {
-      $where[] = 'user_id = "'.Database::escape(User::get_user_id()).'"';
-    }
-
-    if ($group_id !== false) {
-      $where[] = 'group_id = "'.Database::escape($group_id).'"';      
+    if ($group) {
+      $where[] = 'file_group = "'.Database::escape($group).'"';      
     }
 
     $where_media = array();
@@ -496,6 +421,16 @@ class ApiStorage_Controller extends ApiController {
       $info['access'] = 'private';
     }
 
+    // group
+    $info['group'] = '';
+    if (isset($_POST['file_group']) && $_POST['file_group'] && preg_match('#^[0-9a-zA-Z_,-]++$#', $_POST['file_group'])) {
+      $info['group'] = $_POST['file_group'];
+    }
+
+    if (!in_array($info['group'], array('storage', 'photolibrary'))) {
+      return 'error_incorrect_group';
+    }
+
     // check if file meets required media type
     // media type is specified in storage widget
     if (!isset($_POST['file_media'])) {
@@ -517,67 +452,6 @@ class ApiStorage_Controller extends ApiController {
     );
 
     return $info;
-  }
-
-  /**
-   *  Return user_id of user, who uploaded file
-   *  If user is not authenticated, creates a new user
-   *
-   *  @return {strgin} File owner id
-   */
-  protected static function _getUserId() {
-    if (User::isAuthenticated()) {
-      return User::get_user_id();
-    }
-
-    $user = new Users;
-    $user->save();
-
-    Session::login($user->user_id);
-
-    return $user->user_id;
-  }
-  
-  /**
-   *  Return id of files group (if specified)
-   *
-   *  @param {array} file_info uploaded file info
-   *  @return {strgin} Group id
-   */
-  protected static function _getGroupId($file_info) {
-    if (!$file_info['user_id']) {
-      return false;
-    }
-
-    if (!isset($_POST['file_group']) || !is_string($_POST['file_group'])) {
-      return false;
-    }
-
-    $file_group = strtolower($_POST['file_group']);
-
-    if (!preg_match('#^[0-9a-z_-]{1,30}$#', $file_group)) {
-      return false;
-    }
-
-    $res = Database::from('storage_groups');
-    $res->whereAnd('user_id', '=', $file_info['user_id']);
-    $res->whereAnd('group_name', '=', $file_group);
-    $res = $res->get();
-
-    if (!is_array($res)) {
-      return false;
-    }
-
-    if (count($res)) {
-      return $res[0]->group_id;
-    }
-
-    $group = new Database('storage_groups');
-    $group->user_id = $file_info['user_id'];
-    $group->group_name = $file_group;
-    $group->save();
-
-    return $group->group_id;
   }
 
   /**
@@ -682,29 +556,6 @@ class ApiStorage_Controller extends ApiController {
       User::hasAccess('admin')
       ) {
       $info['admin_mode'] = true;
-    }
-
-    // group id
-    $info['group_id'] = false;
-
-    if ($info['admin_mode']) {
-      if ($info['group'] == '__groupless') {
-        $info['group_id'] = 0;
-      }
-
-      $info['group'] = '';
-    }
-    else if($info['group']) {
-      $info['group_id'] = -1;
-
-      foreach (self::_loadUserGroups() as $group) {
-        if ($group['name'] != $info['group']) {
-          continue;
-        }
-
-        $info['group_id'] = $group['id'];
-        break;
-      }
     }
 
     // orderby
