@@ -58,7 +58,7 @@ class ApiTags_Controller extends ApiController {
       return $ret;
     }
 
-    if (in_array($group, array('dev', 'events', 'blog'))) {
+    if (in_array($group, array('dev', 'travel', 'blog'))) {
       return Tags::getTags("pages_{$group}_visible");
     }
 

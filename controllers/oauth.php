@@ -14,6 +14,10 @@ class OAuth_Controller extends BaseController {
    *  @param {string} prefix Oauth type
    */
   public function actionInit($prefix) {
+    var_dump(Session::getUserId());
+    var_dump(Session::getUserId());
+    var_dump('AUTH');
+    exit;
     $oauth = self::__getOAuthObject($prefix);
 
     if (!$oauth) {

@@ -2,7 +2,7 @@
 class ApiPages_Controller extends ApiController {
   static $_types = array(
     "dev",
-    "events",
+    "travel",
     "blog",
   );
   /**
