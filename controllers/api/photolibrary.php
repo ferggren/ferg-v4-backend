@@ -266,7 +266,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
    *  @param {int} collection Collection id
    *  @return {object} Photos
    */
-  public function actionGetPhotos($page = 1, $tags = '', $collection = 0) {
+  public function actionGetPhotos($page = 1, $tags = '', $collection = 0, $photostream = '') {
     $ret = array(
       'page'   => 1,
       'pages'  => 1,
@@ -275,6 +275,10 @@ class ApiPhotoLibrary_Controller extends ApiController {
 
     if (!$this->_checkCollectionId($collection)) {
       return $this->error('invalid_collection_id');
+    }
+
+    if (!in_array($photostream, array('all', 'in_photostream', 'not_in_photostream'))) {
+      $photostream = 'all';
     }
 
     $where = array();
@@ -289,6 +293,11 @@ class ApiPhotoLibrary_Controller extends ApiController {
       }
 
       $where[] = "photo_id IN (".implode(',', $where_in).")";
+    }
+
+    if ($photostream !== 'all') {
+      $value = $photostream === 'in_photostream' ? '1' : '0';
+      $where[] = "photo_show_in_photostream = {$value}";
     }
 
     $where[] = "photo_deleted = 0";
