@@ -22,6 +22,7 @@ class PhotoLibrary extends Database {
         'category'      => $this->photo_category ? $this->photo_category : "",
         'fl'            => $this->photo_fl ? $this->photo_fl : "",
         'efl'           => $this->photo_efl ? $this->photo_efl : "",
+        'location'      => $this->photo_location ? $this->photo_location : "",
       ),
     );
 
@@ -30,6 +31,7 @@ class PhotoLibrary extends Database {
       $export['title_ru']      = $this->photo_title_ru ? $this->photo_title_ru : "";
       $export['title_en']      = $this->photo_title_en ? $this->photo_title_en : "";
       $export['collection_id'] = (int)$this->photo_collection_id;
+      $export['photostream']   = !!$this->photo_show_in_photostream;
     }
 
     if (Lang::getLang() == 'ru') {

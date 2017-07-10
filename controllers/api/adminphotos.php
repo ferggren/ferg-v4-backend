@@ -25,10 +25,8 @@ class ApiAdminPhotos_Controller extends ApiController {
       return $this->error('invalid_photo_id');
     }
 
-    if ($photo->user_id != User::get_user_id()) {
-      if (!User::hasAccess('admin')) {
-        return $this->error('invalid_photo_id');
-      }
+    if (!User::hasAccess('admin')) {
+      return $this->error('invalid_photo_id');
     }
 
     if (!($file = StorageFiles::find($photo->file_id))) {
@@ -39,6 +37,15 @@ class ApiAdminPhotos_Controller extends ApiController {
       return $this->error('invalid_photo_id');
     }
 
-    return $this->success($file->exportInfo());
+    $file = $file->exportInfo();
+    $photo = $photo->export();
+
+    $ret = [
+      'src' => $file['link_download'],
+      'width' => $photo['width'],
+      'height' => $photo['height'],
+    ];
+
+    return $this->success($ret);
   }
 }

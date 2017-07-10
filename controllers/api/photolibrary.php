@@ -27,6 +27,60 @@ class ApiPhotoLibrary_Controller extends ApiController {
   }
 
   /**
+   *  Remove photo from photostream
+   *
+   *  @param {int} photo_id Photo id
+   *  @return {object} Photos
+   */
+  public function actionRemoveFromPhotostream($photo_id = 0) {
+    if (!is_string($photo_id) || !preg_match('#^\d{1,10}$#', $photo_id)) {
+      return $this->error('invalid_photo_id');
+    }
+
+    if (!$photo = PhotoLibrary::find($photo_id)) {
+      return $this->error('invalid_photo_id');
+    }
+
+    if (!$photo->photo_show_in_photostream) {
+      return $this->success();
+    }
+
+    $photo->photo_show_in_photostream = 0;
+    $photo->save();
+
+    $this->_updatePhotoTags($photo);
+
+    return $this->success();
+  }
+
+  /**
+   *  Add photo to photostream
+   *
+   *  @param {int} photo_id Photo id
+   *  @return {object} Photos
+   */
+  public function actionAddToPhotostream($photo_id = 0) {
+    if (!is_string($photo_id) || !preg_match('#^\d{1,10}$#', $photo_id)) {
+      return $this->error('invalid_photo_id');
+    }
+
+    if (!$photo = PhotoLibrary::find($photo_id)) {
+      return $this->error('invalid_photo_id');
+    }
+
+    if ($photo->photo_show_in_photostream) {
+      return $this->success();
+    }
+
+    $photo->photo_show_in_photostream = 1;
+    $photo->save();
+
+    $this->_updatePhotoTags($photo);
+
+    return $this->success();
+  }
+
+  /**
    *  Delete photo
    *
    *  @param {int} photo_id Photo id
@@ -39,12 +93,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
 
     if (!$photo = PhotoLibrary::find($photo_id)) {
       return $this->error('invalid_photo_id');
-    }
-
-    if ($photo->user_id != User::get_user_id()) {
-      if (!User::hasAccess('admin')) {
-        return $this->error('invalid_photo_id');
-      }
     }
 
     if ($photo->photo_deleted) {
@@ -80,12 +128,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
 
     if (!$photo = PhotoLibrary::find($photo_id)) {
       return $this->error('invalid_photo_id');
-    }
-
-    if ($photo->user_id != User::get_user_id()) {
-      if (!User::hasAccess('admin')) {
-        return $this->error('invalid_photo_id');
-      }
     }
 
     if (!$photo->photo_deleted) {
@@ -126,12 +168,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
       return $this->error('invalid_photo_id');
     }
 
-    if ($photo->user_id != User::get_user_id()) {
-      if (!User::hasAccess('admin')) {
-        return $this->error('invalid_photo_id');
-      }
-    }
-
     if ($photo->photo_deleted) {
       return $this->error('invalid_photo_id');
     }
@@ -156,6 +192,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
       'shutter_speed' => '#^(\d{1,4}|1/\d{1,5})$#ui',
       'camera'        => "#^{$text_regexp}{1,20}$#ui",
       'lens'          => "#^{$text_regexp}{1,50}$#ui",
+      'location'      => "#^{$text_regexp}{1,50}$#ui",
       'category'      => "#^{$text_regexp}{1,150}$#ui",
       'fl'            => '#^\d{1,4}(?:\.\d{1,2})?$#ui',
       'efl'           => '#^\d{1,4}(?:\.\d{1,2})?$#ui',
@@ -222,7 +259,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
   }
 
   /**
-   *  Return user photos
+   *  Return photos
    *
    *  @param {int} page Page id
    *  @param {string} tags List of comma-seperated tags
@@ -254,7 +291,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
       $where[] = "photo_id IN (".implode(',', $where_in).")";
     }
 
-    $where[] = "user_id = '".Database::escape(User::get_user_id())."'";
     $where[] = "photo_deleted = 0";
 
     if ($collection) {
@@ -287,15 +323,14 @@ class ApiPhotoLibrary_Controller extends ApiController {
   }
 
   /**
-   *  Return user photo collections (with statistics)
+   *  Return photo collections (with statistics)
    *
    *  @return {object} Collection
    */
   public function actionGetCollections() {
     $ret = array();
 
-    $collections = PhotoLibraryCollections::whereAnd('user_id', '=', User::get_user_id());
-    $collections->whereAnd('collection_deleted', '=', 0);
+    $collections = PhotoLibraryCollections::where('collection_deleted', '=', 0);
 
     foreach ($collections->get() as $collection) {
       $preview = false;
@@ -304,8 +339,8 @@ class ApiPhotoLibrary_Controller extends ApiController {
         $preview = StoragePreview::makePreviewLink(
           $collection->collection_cover_photo_hash, array(
             'crop'   => true,
-            'width'  => 400,
-            'height' => 150,
+            'width'  => 100,
+            'height' => 50,
             'align'  => 'center',
             'valign' => 'top',
         ));
@@ -339,7 +374,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
     }
 
     $exists = Database::from('photolibrary_collections');
-    $exists->where('user_id', '=', User::get_user_id());
     $exists->whereAnd('collection_deleted', '=', 0);
     $exists->whereAnd('collection_name', 'LIKE', $name);
 
@@ -348,7 +382,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
     }
 
     $collection = new PhotoLibraryCollections;
-    $collection->user_id = User::get_user_id();
     $collection->collection_name = $name;
     $collection->collection_updated = time();
     $collection->collection_created = time();
@@ -388,12 +421,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
       return $this->error('invalid_collection_id');
     }
 
-    if ($collection->user_id != User::get_user_id()) {
-      if (!User::hasAccess('admin')) {
-        return $this->error('invalid_collection_id');
-      }
-    }
-
     if ($collection->collection_deleted) {
       return $this->error();
     }
@@ -403,7 +430,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
     }
 
     $exists = Database::from('photolibrary_collections');
-    $exists->where('user_id', '=', User::get_user_id());
     $exists->whereAnd('collection_deleted', '=', 0);
     $exists->whereAnd('collection_name', 'LIKE', $name);
 
@@ -432,12 +458,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
       return $this->error('invalid_collection_id');
     }
 
-    if ($collection->user_id != User::get_user_id()) {
-      if (!User::hasAccess('admin')) {
-        return $this->error('invalid_collection_id');
-      }
-    }
-
     if ($collection->collection_deleted) {
       return $this->success();
     }
@@ -461,12 +481,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
 
     if (!$collection = PhotoLibraryCollections::find($id)) {
       return $this->error('invalid_collection_id');
-    }
-
-    if ($collection->user_id != User::get_user_id()) {
-      if (!User::hasAccess('admin')) {
-        return $this->error('invalid_collection_id');
-      }
     }
 
     if (!$collection->collection_deleted) {
@@ -496,10 +510,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
     }
 
     if ($file->file_deleted) {
-      return $this->error('invalid_file_id');
-    }
-
-    if ($file->user_id != User::get_user_id()) {
       return $this->error('invalid_file_id');
     }
 
@@ -537,7 +547,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
     $photo = new PhotoLibrary;
     $photo->file_id = $file_id;
     $photo->file_hash = $file->file_hash;
-    $photo->user_id = User::get_user_id();
     $photo->photo_collection_id = $collection;
     $photo->photo_size = "{$size[0]}x{$size[1]}";
     $photo->photo_added = time();
@@ -624,8 +633,8 @@ class ApiPhotoLibrary_Controller extends ApiController {
       $preview = StoragePreview::makePreviewLink(
         $photo[0]->file_hash, array(
           'crop'   => true,
-          'width'  => 400,
-          'height' => 150,
+          'width'  => 100,
+          'height' => 50,
           'align'  => 'center',
           'valign' => 'middle',
       ));
@@ -642,8 +651,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
   }
 
   protected function _removePhotoTags($photo) {
-    $user_id = User::get_user_id();
-
     $tags = array(
       'iso',
       'shutter_speed',
@@ -653,13 +660,14 @@ class ApiPhotoLibrary_Controller extends ApiController {
       'category',
       'fl',
       'efl',
+      'location',
     );
 
     foreach ($tags as $tag) {
       $key    = 'photo_' . $tag;
 
       Tags::attachTags(
-        "photos_{$user_id}_0_{$tag}",
+        "photos_0_{$tag}",
         $photo->photo_id,
         array()
       );
@@ -675,8 +683,6 @@ class ApiPhotoLibrary_Controller extends ApiController {
   }
 
   protected function _updatePhotoTags($photo) {
-    $user_id = User::get_user_id();
-
     $tags = array(
       'iso',
       'shutter_speed',
@@ -686,7 +692,17 @@ class ApiPhotoLibrary_Controller extends ApiController {
       'category',
       'fl',
       'efl',
+      'location',
     );
+
+    $photostream_tags = array(
+      'camera',
+      'lens',
+      'category',
+      'location',
+    );
+
+    $photostream_values = array();
 
     foreach ($tags as $tag) {
       $key    = 'photo_' . $tag;
@@ -696,8 +712,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
       if ($value && !$photo->photo_deleted) {
         if ($tag != 'category') {
           $values = array($photo->$key);
-        }
-        else {
+        } else {
           foreach (explode(',', $value) as $_value) {
             if (!($_value = trim($_value))) {
               continue;
@@ -708,11 +723,13 @@ class ApiPhotoLibrary_Controller extends ApiController {
         }
       }
 
-      Tags::attachTags(
-        "photos_{$user_id}_0_{$tag}",
-        $photo->photo_id,
-        $values
-      );
+      if ($photo->photo_show_in_photostream) {
+        foreach($values as $value) {
+          $photostream_values[] = $value;
+        }
+      }
+
+      Tags::attachTags("photos_0_{$tag}", $photo->photo_id, $values);
 
       if ($photo->photo_collection_id) {
         Tags::attachTags(
@@ -722,6 +739,8 @@ class ApiPhotoLibrary_Controller extends ApiController {
         );
       }
     }
+
+    Tags::attachTags("photostream", $photo->photo_id, $photostream_values);
   }
 
   /**
@@ -732,9 +751,8 @@ class ApiPhotoLibrary_Controller extends ApiController {
    */
   protected function _getCollectionTags($collection) {
     if (!$collection) {
-      $key = "photos_".User::get_user_id()."_0_";
-    }
-    else {
+      $key = "photos_0_";
+    } else {
       $key = "photos_{$collection}_";
     }
 
@@ -747,6 +765,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
       "{$key}category",
       "{$key}fl",
       "{$key}efl",
+      "{$key}location",
     ));
 
     return array(
@@ -758,6 +777,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
       "category"      => $tags["{$key}category"],
       "fl"            => $tags["{$key}fl"],
       "efl"           => $tags["{$key}efl"],
+      "location"      => $tags["{$key}location"],
     );
   }
 
@@ -766,9 +786,8 @@ class ApiPhotoLibrary_Controller extends ApiController {
    */
   protected function _makeTagsWhere($collection) {
     if (!$collection) {
-      $key = "photos_".User::get_user_id()."_0_";
-    }
-    else {
+      $key = "photos_0_";
+    } else {
       $key = "photos_{$collection}_";
     }
 
@@ -781,6 +800,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
       "category"      => "",
       "fl"            => "",
       "efl"           => "",
+      "location"      => "",
     );
 
     foreach ($tags as $tag => $value) {
