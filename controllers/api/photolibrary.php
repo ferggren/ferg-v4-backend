@@ -732,7 +732,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
         }
       }
 
-      if ($photo->photo_show_in_photostream) {
+      if (in_array($tag, $photostream_tags) && $photo->photo_show_in_photostream) {
         foreach($values as $value) {
           $photostream_values[] = $value;
         }
