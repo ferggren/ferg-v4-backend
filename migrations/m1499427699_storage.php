@@ -15,8 +15,8 @@ Class m1499427699_storage {
     }
 
     Database::query("ALTER TABLE `storage_files` DROP `user_id`, DROP `group_id`");
-    Database::query("ALTER TABLE `storage_files` ADD INDEX (`group`, `file_media`)");
-    Database::query("ALTER TABLE `storage_files` ADD INDEX (`file_media`, `group`)");
+    Database::query("ALTER TABLE `storage_files` ADD INDEX (`file_group`, `file_media`)");
+    Database::query("ALTER TABLE `storage_files` ADD INDEX (`file_media`, `file_group`)");
     Database::query("DROP TABLE `storage_groups`");
   }
 
