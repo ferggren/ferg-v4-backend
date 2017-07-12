@@ -106,7 +106,7 @@ class Feed_CliController extends CliController {
         'feed',
         $res->feed_id,
         $tags,
-        $row['type'] == 'gallery' ? 1 : 5
+        $row['type'] == 'photostream' ? 1 : 5
       );
     }
   }
@@ -130,7 +130,7 @@ class Feed_CliController extends CliController {
         'desc_ru'   => '',
         'desc_en'   => '',
         'preview'   => '',
-        'ratio'     => 10,
+        'ratio'     => 0,
         'tags'      => $page->page_tags,
         'order'     => $page->page_date_timestamp ? $page->page_date_timestamp : $page->page_id,
         'timestamp' => $page->page_date_timestamp,
@@ -171,23 +171,13 @@ class Feed_CliController extends CliController {
   protected function _getPhotos() {
     $ret = array();
 
-    $res = Database::from('photolibrary_collections');
-    $res->whereAnd('collection_name', 'LIKE', 'gallery');
-    $res->whereAnd('user_id', '=', 1);
-
-    if (!count($res = $res->get())) {
-      return $ret;
-    }
-
-    $collection = $res[0]->collection_id;
-
-    $res = Photolibrary::where('photo_collection_id', '=', $collection);
+    $res = Photolibrary::where('photo_show_in_photostream', '=', 1);
     $res->whereAnd('photo_deleted', '=', '0');
 
     foreach ($res->get() as $photo) {
       $info = array(
         'id'        => $photo->photo_id,
-        'type'      => 'gallery',
+        'type'      => 'photostream',
         'title_ru'  => '',
         'title_en'  => '',
         'desc_ru'   => '',
@@ -201,6 +191,7 @@ class Feed_CliController extends CliController {
           // $photo->photo_lens,
           // $photo->photo_camera,
           $photo->photo_category,
+          $photo->photo_location,
         )),
       );
 

@@ -230,13 +230,13 @@ class ApiPages_Controller extends ApiController {
   }
 
   /**
-   *  Update photo tags
+   *  Update photo gps
    *
    *  @param {int} id Page id
-   *  @param {string} tags Tags
-   *  @return {object} Photo's updated date
+   *  @param {string} gps coordinates
+   *  @return {object} Photo's updated gps
    */
-  public function actionUpdateTags($id, $tags) {
+  public function actionUpdateGps($id, $gps) {
     if (!($page = $this->_getPage($id, true))) {
       return $this->error('access_denied');
     }
@@ -245,18 +245,61 @@ class ApiPages_Controller extends ApiController {
       return $this->error('incorrect_page_id');
     }
 
-    if (!preg_match('#^[0-9a-zA-ZАаБбВвГгДдЕеЁёЖжЗзИиЙйКкЛлМмНнОоПпРрСсТтУуФфХхЦцЧчШшЩщЪъЫыЬьЭэЮюЯя?.,?!\s:/_-]{0,200}$#iu', $tags)) {
-      return $this->error('incorrect_tags');
+    if ($page->page_gps == $gps) {
+      return $this->success(array('gps' => $page->page_gps));
     }
 
-    $page->page_tags = $tags;
+    if ($gps && !preg_match('#^-?\d+\.\d+\s-?\d+\.\d+$#', $gps)) {
+      return $this->error('invalid_gps');
+    }
+
+    $page->page_gps = $gps ? $gps : '';
+    $page->save();
+
+    return $this->success(array('gps' => $page->page_gps));
+  }
+
+  /**
+   *  Update photo tags
+   *
+   *  @param {int} id Page id
+   *  @param {string} tags Tags
+   *  @return {object} Photo's updated date
+   */
+  public function actionUpdateTags($id, $tag, $value) {
+    if (!($page = $this->_getPage($id, true))) {
+      return $this->error('access_denied');
+    }
+
+    if ($page->page_deleted) {
+      return $this->error('incorrect_page_id');
+    }
+
+    if (!preg_match('#^[0-9a-zA-ZАаБбВвГгДдЕеЁёЖжЗзИиЙйКкЛлМмНнОоПпРрСсТтУуФфХхЦцЧчШшЩщЪъЫыЬьЭэЮюЯя?.,?!\s:/_-]{0,200}$#iu', $value)) {
+      return $this->error('invalid_tag');
+    }
+
+    if (!in_array($tag, array('tags', 'location'))) {
+      return $this->error('invalid_tag');
+    }
+
+    if ($tag === 'tags') {
+      $page->page_tags = $value;
+    } else {
+      $page->page_location = $value;
+    }
+
     $page->save();
 
     $this->_updatePageTags($page);
 
     return $this->success(array(
-      'tags' => Tags::getTags("pages_{$page->page_type}_all"),
+      'tags' => [
+        'tags' => Tags::getTags("pages_{$page->page_type}_all_tags"),
+        'location' => Tags::getTags("pages_{$page->page_type}_all_location"),
+      ],
       'page_tags' => $page->page_tags,
+      'page_location' => $page->page_location,
     ));
   }
 
@@ -343,16 +386,21 @@ class ApiPages_Controller extends ApiController {
    *  @param {string} visible Visibility type
    *  @return {object} Tags list
    */
-  public function actionGetTags($type, $visible = 'visible') {
+  public function actionGetTags($type, $visible = 'visible', $return = 'simple') {
     if (!in_array($type, self::$_types)) {
       return $this->error('incorrect_type');
     }
 
     $visible = $this->_checkVisibility($visible);
 
-    return $this->success(Tags::getTags(
-      "pages_{$type}_{$visible}"
-    ));
+    if ($return !== 'full') {
+      return $this->success(Tags::getTags("pages_{$type}_{$visible}"));
+    }
+
+    return $this->success([
+      'tags' => Tags::getTags("pages_{$type}_{$visible}_tags"),
+      'location' => Tags::getTags("pages_{$type}_{$visible}_location"),
+    ]);
   }
 
   /**
@@ -462,37 +510,47 @@ class ApiPages_Controller extends ApiController {
    *  @param {object} page Page object
    */
   protected function _updatePageTags($page) {
-    $values         = array();
-    $values_visible = array();
-    $values_all     = array();
+    foreach(array('', 'location', 'tags') as $type) {
+      $values = array();
+      $values_visible = array();
+      $values_all = array();
 
-    foreach (explode(',', $page->page_tags) as $tag) {
-      if (!($tag = trim($tag))) {
-        continue;
+      if ($type !== 'location') {
+        foreach (explode(',', $page->page_tags) as $tag) {
+          if (!($tag = trim($tag))) {
+            continue;
+          }
+
+          $values[] = $tag;
+        }
       }
 
-      $values[] = $tag;
-    }
-
-    if (!$page->page_deleted) {
-      $values_all = $values;
-
-      if ($page->page_visible) {
-        $values_visible = $values;
+      if ($type !== 'tags' && $page->page_location) {
+        $values[] = $page->page_location;
       }
+
+      if (!$page->page_deleted) {
+        $values_all = $values;
+
+        if ($page->page_visible) {
+          $values_visible = $values;
+        }
+      }
+
+      if ($type) $type = "_{$type}";
+
+      Tags::attachTags(
+        "pages_{$page->page_type}_all{$type}",
+        $page->page_id,
+        $values_all
+      );
+
+      Tags::attachTags(
+        "pages_{$page->page_type}_visible{$type}",
+        $page->page_id,
+        $values_visible
+      );
     }
-
-    Tags::attachTags(
-      "pages_{$page->page_type}_all",
-      $page->page_id,
-      $values_all
-    );
-
-    Tags::attachTags(
-      "pages_{$page->page_type}_visible",
-      $page->page_id,
-      $values_visible
-    );
   }
 }
 ?>

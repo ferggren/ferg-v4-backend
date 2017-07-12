@@ -1,5 +1,5 @@
 <?php
-class ApiGallery_Controller extends ApiController {
+class ApiPhotostream_Controller extends ApiController {
   public function actionIndex() {
     return $this->error('access_denied');
   }
@@ -15,10 +15,6 @@ class ApiGallery_Controller extends ApiController {
   public function actionGetPhoto($id, $tag) {
     if (!preg_match('#^[0-9a-zA-ZАаБбВвГгДдЕеЁёЖжЗзИиЙйКкЛлМмНнОоПпРрСсТтУуФфХхЦцЧчШшЩщЪъЫыЬьЭэЮюЯя?.,?!\s:/_-]{0,50}$#uis', $tag)) {
       return $this->error('incorrect_tag');
-    }
-
-    if (!($collection_id = $this->_getGalleryCollectionId())) {
-      return $this->error('not_found');
     }
 
     if ($tag) {
@@ -41,7 +37,7 @@ class ApiGallery_Controller extends ApiController {
       return $this->error('not_found');
     }
 
-    if ($photo->photo_collection_id != $collection_id) {
+    if (!$photo->photo_show_in_photostream) {
       return $this->error('not_found');
     }
 
@@ -80,10 +76,6 @@ class ApiGallery_Controller extends ApiController {
       return $this->error('incorrect_tag');
     }
 
-    if (!($collection_id = $this->_getGalleryCollectionId())) {
-      return $this->error('photos_not_found');
-    }
-
     $where = array();
 
     if ($tag) {
@@ -98,7 +90,7 @@ class ApiGallery_Controller extends ApiController {
       $where[] = "photo_id IN (".implode(',', $where_in).")";
     }
 
-    $where[] = "photo_collection_id = '".Database::escape($collection_id)."'";
+    $where[] = "photo_show_in_photostream = 1";
     $where[] = "photo_deleted = 0";
 
     $photos = PhotoLibrary::orderBy('photo_orderby', 'desc');
@@ -124,68 +116,13 @@ class ApiGallery_Controller extends ApiController {
   }
 
   /**
-   *  Get gallery ID
-   */
-  protected function _getGalleryCollectionId() {
-    static $id = false;
-
-    if ($id !== false) {
-      return $id;
-    }
-
-    $res = Database::from('photolibrary_collections');
-    $res->whereAnd('collection_name', 'LIKE', 'gallery');
-    $res->whereAnd('user_id', '=', 1);
-
-    if (!count($res = $res->get())) {
-      return $id = 0;
-    }
-
-    return $id = $res[0]->collection_id;
-  }
-
-  /**
    *  Return photos by tag
    *
    *  @param {string} tag Tag
    *  @return {object} Photo IDs
    */
   protected function _getTagPhotos($tag) {
-    static $ret = array();
-
-    if (!$tag) {
-      return array();
-    }
-
-    if (!($collection_id = $this->_getGalleryCollectionId())) {
-      return array();
-    }
-
-    if (isset($ret[$tag])) {
-      return $ret[$tag];
-    }
-
-    $key = "photos_{$collection_id}_";
-
-    $groups = array(
-      "camera",
-      "lens",
-      "category",
-    );
-
-    $uniq = array();
-
-    foreach ($groups as $group) {
-      if (!count($photos = Tags::getTagRelations($key.$group, $tag))) {
-        continue;
-      }
-
-      foreach ($photos as $photo) {
-        $uniq[$photo] = true;
-      }
-    }
-
-    return $ret[$tag] = array_keys($uniq);
+    return Tags::getTagRelations("photostream", $tag);
   }
 
   /**
@@ -211,13 +148,9 @@ class ApiGallery_Controller extends ApiController {
       $where[] = "photo_id IN (".implode(',', $where_in).")";
     }
 
-    if (!($collection_id = $this->_getGalleryCollectionId())) {
-      return array();
-    }
-
     $where[] = 'photo_id != "'.Database::escape($photo->photo_id).'"';
     $where[] = "photo_orderby ".($type == 'next' ? '>' : '<').' "'.Database::escape($photo->photo_orderby).'"';
-    $where[] = "photo_collection_id = '".Database::escape($collection_id)."'";
+    $where[] = "photo_show_in_photostream = 1";
     $where[] = "photo_deleted = 0";
 
     $photos = PhotoLibrary::orderBy('photo_orderby', $type == 'next' ? 'asc' : 'desc');

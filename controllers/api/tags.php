@@ -34,28 +34,8 @@ class ApiTags_Controller extends ApiController {
       return Tags::getTags('feed');
     }
 
-    if ($group == 'gallery') {
-      if (!($gallery_id = $this->_getGalleryCollectionId())) {
-        return false;
-      }
-
-      $groups = Tags::getTags(array(
-        "photos_{$gallery_id}_category",
-        "photos_{$gallery_id}_lens",
-        "photos_{$gallery_id}_camera",
-      ));
-
-      if (!$groups) return false;
-
-      $ret = array();
-
-      foreach ($groups as $group => $tags) {
-        foreach ($tags as $tag => $count) {
-          $ret[$tag] = $count;
-        }
-      }
-
-      return $ret;
+    if ($group == 'photostream') {
+      return Tags::getTags("photostream");
     }
 
     if (in_array($group, array('dev', 'travel', 'blog'))) {
@@ -63,26 +43,5 @@ class ApiTags_Controller extends ApiController {
     }
 
     return false;
-  }
-
-  /**
-   *  Get gallery ID
-   */
-  protected function _getGalleryCollectionId() {
-    static $id = false;
-
-    if ($id !== false) {
-      return $id;
-    }
-
-    $res = Database::from('photolibrary_collections');
-    $res->whereAnd('collection_name', 'LIKE', 'gallery');
-    $res->whereAnd('user_id', '=', 1);
-
-    if (!count($res = $res->get())) {
-      return $id = 0;
-    }
-
-    return $id = $res[0]->collection_id;
   }
 }

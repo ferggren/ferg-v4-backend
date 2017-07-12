@@ -13,6 +13,8 @@ class MediaPages extends Database {
       'date'      => $this->page_date,
       'timestamp' => (int)$this->page_date_timestamp,
       'tags'      => $this->page_tags,
+      'location'  => $this->page_location,
+      'gps'       => $this->page_gps,
       'title'     => '',
       'desc'      => '',
       'html'      => '',
