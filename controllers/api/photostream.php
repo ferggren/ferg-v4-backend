@@ -100,7 +100,7 @@ class ApiPhotostream_Controller extends ApiController {
       return $this->success($ret);
     }
 
-    $rpp = 14;
+    $rpp = 24;
     $ret['page'] = is_numeric($page) ? (int)$page : 1;
     $ret['pages'] = (int)($count / $rpp);
     if (($ret['pages'] * $rpp) < $count) ++$ret['pages'];
