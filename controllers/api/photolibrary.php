@@ -356,7 +356,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
       }
 
       $ret[] = array(
-        'id'      => $collection->collection_id,
+        'id'      => (int)$collection->collection_id,
         'name'    => $collection->collection_name,
         'updated' => $collection->collection_updated,
         'cover'   => $preview,
@@ -398,7 +398,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
     $collection->save();
 
     return $this->success(array(
-      'id'      => $collection->collection_id,
+      'id'      => (int)$collection->collection_id,
       'name'    => $collection->collection_name,
       'updated' => $collection->collection_updated,
       'cover'   => '',
@@ -652,8 +652,8 @@ class ApiPhotoLibrary_Controller extends ApiController {
     $collection->save();
 
     return array(
-      'id'      => $collection->collection_id,
-      'photos'  => $collection->collection_photos,
+      'id'      => (int)$collection->collection_id,
+      'photos'  => (int)$collection->collection_photos,
       'cover'   => $preview,
       'updated' => $collection->collection_updated,
     );
