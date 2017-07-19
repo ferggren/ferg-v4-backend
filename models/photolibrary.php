@@ -44,9 +44,9 @@ class PhotoLibrary extends Database {
     $export['ratio'] = 1;
 
     if (preg_match('#^(\d{1,5})x(\d{1,5})$#', $this->photo_size, $data)) {
-      $export['ratio'] = round($data[1] / $data[2], 2);
       $export['width'] = (int)$data[1];
       $export['height'] = (int)$data[2];
+      $export['ratio'] = round($export['width'] / $export['height'], 2);
     }
 
     $w = 500; $h = 250;
@@ -65,11 +65,18 @@ class PhotoLibrary extends Database {
       )
     );
 
-    $export['photo'] = StoragePreview::makePreviewLink(
+    $export['photo_big'] = StoragePreview::makePreviewLink(
       $this->file_hash, array(
         'crop'      => false,
         'width'     => 1680,
         'copyright' => 'ferg.in',
+      )
+    );
+
+    $export['photo_small'] = StoragePreview::makePreviewLink(
+      $this->file_hash, array(
+        'crop'  => false,
+        'height' => 200,
       )
     );
 
