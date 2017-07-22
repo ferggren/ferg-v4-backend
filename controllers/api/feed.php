@@ -3,6 +3,32 @@ class ApiFeed_Controller extends ApiController {
   public function actionIndex() {
     return $this->error('access_denied');
   }
+
+  public function actionGetMarkers() {
+    $ret = array();
+
+    foreach(Feed::get() as $row) {
+      if (!$row->feed_location || !$row->feed_gps || !$row->feed_marker) {
+        continue;
+      }
+
+      $url  = '/' . Lang::getLang() . '/';
+      $url .= $row->feed_type . '/';
+      $url .= $row->feed_target_id;
+
+      $ret[] = array(
+        'pic'  => $row->feed_marker,
+        'tags' => $row->feed_tags,
+        'type' => $row->feed_type,
+        'id'   => (int)$row->feed_target_id,
+        'url'  => $url,
+        'loc'  => $row->feed_location,
+        'gps'  => $row->feed_gps,
+      );
+    }
+
+    return $this->success($ret);
+  }
   
   /**
    *  Return feed

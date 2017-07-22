@@ -7,7 +7,7 @@ $config = array(
   'image_preview' => array(
     // Maximum size of file
     // If size is greater, preview will not be available
-    'max_filesize' => (1024 * 1024 * 4),
+    'max_filesize' => (1024 * 1024 * 10),
 
     // Maximum width and height of file
     // If width or height is greater, preview will not be available
@@ -16,8 +16,8 @@ $config = array(
 
     // Minimum width and height of file
     // If width or height is smaller, preview will not be available
-    'min_fileheight' => 120,
-    'min_filewidth' => 80,
+    'min_fileheight' => 40,
+    'min_filewidth' => 40,
 
     // Max width for preview
     // If file width or height is greater, preview will be resized

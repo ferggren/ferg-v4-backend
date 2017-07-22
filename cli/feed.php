@@ -86,8 +86,12 @@ class Feed_CliController extends CliController {
       $res->feed_desc_ru   = $row['desc_ru'];
       $res->feed_desc_en   = $row['desc_en'];
       $res->feed_preview   = $row['preview'];
+      $res->feed_marker    = $row['marker'];
       $res->feed_ratio     = $row['ratio'];
       $res->feed_order     = $row['order'];
+      $res->feed_location  = $row['location'];
+      $res->feed_gps       = $row['gps'];
+      $res->feed_tags      = $row['tags'];
       $res->feed_timestamp = $row['timestamp'];
 
       $res->save();
@@ -130,14 +134,21 @@ class Feed_CliController extends CliController {
         'desc_ru'   => '',
         'desc_en'   => '',
         'preview'   => '',
+        'marker'    => '',
         'ratio'     => 0,
         'tags'      => $page->page_tags,
+        'gps'       => $page->page_gps,
+        'location'  => $page->page_location,
         'order'     => $page->page_date_timestamp ? $page->page_date_timestamp : $page->page_id,
         'timestamp' => $page->page_date_timestamp,
       );
 
       if ($page->page_photo_id && $preview = $this->_getPagePreview($page->page_photo_id)) {
         $info['preview'] = $preview;
+      }
+
+      if ($page->page_photo_id && $marker = $this->_getPageMarker($page->page_photo_id)) {
+        $info['marker'] = $marker;
       }
 
       $entry_id = Database::from('media_entries');
@@ -175,6 +186,8 @@ class Feed_CliController extends CliController {
     $res->whereAnd('photo_deleted', '=', '0');
 
     foreach ($res->get() as $photo) {
+      $export = $photo->export();
+
       $info = array(
         'id'        => $photo->photo_id,
         'type'      => 'photostream',
@@ -186,7 +199,10 @@ class Feed_CliController extends CliController {
         'ratio'     => 1,
         'order'     => $photo->photo_orderby,
         'timestamp' => 0,
-        'preview'   => $photo->export()['photo_small'],
+        'preview'   => $export['photo_small'],
+        'marker'    => $export['photo_tiny'],
+        'gps'       => $photo->photo_gps,
+        'location'  => $photo->photo_location,
         'tags'      => implode(',', array(
           // $photo->photo_lens,
           // $photo->photo_camera,
@@ -203,6 +219,21 @@ class Feed_CliController extends CliController {
     }
 
     return $ret;
+  }
+
+  /**
+   *  Get page preview
+   */
+  protected function _getPageMarker($photo_id) {
+    if (!($photo = Photolibrary::find($photo_id))) {
+      return false;
+    }
+
+    if ($photo->photo_deleted) {
+      return false;
+    }
+    
+    return $photo->export()['photo_tiny'];
   }
 
   /**

@@ -80,6 +80,16 @@ class PhotoLibrary extends Database {
       )
     );
 
+    $export['photo_tiny'] = StoragePreview::makePreviewLink(
+      $this->file_hash, array(
+        'crop'   => true,
+        'height' => 40,
+        'width'  => 40,
+        'align'  => 'center',
+        'valign' => 'middle',
+      )
+    );
+
     return $export;
   }
 }

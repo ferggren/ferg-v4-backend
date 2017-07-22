@@ -4,6 +4,40 @@ class ApiPhotostream_Controller extends ApiController {
     return $this->error('access_denied');
   }
 
+  public function actionGetMarkers() {
+    $ret = [];
+
+    $photos = PhotoLibrary::whereAnd('photo_show_in_photostream', '=', '1');
+    $photos->whereAnd('photo_deleted', '=', '0');
+    $photos->orderBy('photo_orderby', 'desc');
+
+    foreach($photos->get() as $photo) {
+      $export = $photo->export();
+
+      if (!$photo->photo_location || !$photo->photo_gps || !$export['photo_tiny']) {
+        continue;
+      }
+
+      $url  = '/' . Lang::getLang() . '/photostream/' . $photo->photo_id;
+
+      $ret[] = array(
+        'pic'  => $export['photo_tiny'],
+        'tags' => implode(',', array(
+          $photo->photo_location,
+          $photo->photo_category,
+          $photo->photo_camera,
+          $photo->photo_lens,
+        )),
+        'type' => 'photostream',
+        'id'   => (int)$photo->photo_id,
+        'url'  => $url,
+        'loc'  => $photo->photo_location,
+        'gps'  => $photo->photo_gps,
+      );
+    }
+
+    return $this->success($ret);
+  }
 
   /**
    *  Return photo info
