@@ -186,7 +186,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
       'title_ru'      => "#^{$text_regexp}{1,50}$#ui",
       'title_en'      => "#^{$text_regexp}{1,50}$#ui",
       'gps'           => '#^-?\d{1,3}\.\d{1,20}[\s,]++-?\d{1,3}\.\d{1,20}$#ui',
-      'taken'         => '#^(\d{4})\.(\d{2})\.(\d{2})$#ui',
+      'taken'         => '#^(\d{4})\.(\d{2})\.(\d{2})(?:\s(\d+):(\d+):(\d+))?$#ui',
       'iso'           => '#^\d{2,7}$#ui',
       'aperture'      => '#^f/\d{1,2}(?:\.\d)?$#ui',
       'shutter_speed' => '#^(\d{1,4}|1/\d{1,5})$#ui',
@@ -219,7 +219,7 @@ class ApiPhotoLibrary_Controller extends ApiController {
       }
 
       if ($field == 'taken') {
-        $time = mktime(0, 0, 0, $data[2], $data[3], $data[1]);
+        $time = mktime($data[4] || 0, $data[5] || 0, $data[6] || 0, $data[2], $data[3], $data[1]);
         $photo->photo_taken_timestamp = $time;
         $photo->photo_orderby = $time + (int)$photo->photo_id;
       }
@@ -553,19 +553,29 @@ class ApiPhotoLibrary_Controller extends ApiController {
       return $this->error('file_is_not_image');
     }
 
+    $exif = $this->_getPhotoExif(ROOT_PATH . $file->file_path);
+
     $photo = new PhotoLibrary;
     $photo->file_id = $file_id;
     $photo->file_hash = $file->file_hash;
     $photo->photo_collection_id = $collection;
     $photo->photo_size = "{$size[0]}x{$size[1]}";
     $photo->photo_added = time();
+    $photo->photo_camera = $exif['camera'];
+    $photo->photo_shutter_speed = $exif['shutter_speed'];
+    $photo->photo_iso = $exif['iso'];
+    $photo->photo_taken_timestamp = $exif['taken_timestamp'];
+    $photo->photo_taken = $exif['taken'];
+
     $photo->save();
 
-    $photo->photo_orderby = $photo->photo_id;
+    $photo->photo_orderby = $exif['taken_timestamp'] + (int)$photo->photo_id;
     $photo->save();
+
+    $this->_updatePhotoTags($photo);
 
     $ret = array(
-      'photo'      => $photo->export(true),
+      'photo' => $photo->export(true),
       'collection' => false,
     );
 
@@ -867,6 +877,52 @@ class ApiPhotoLibrary_Controller extends ApiController {
       }
 
       $ret[] = $photo_id;
+    }
+
+    return $ret;
+  }
+
+  /**
+   *  Return extracted photo exif
+   */
+  protected function _getPhotoExif($path) {
+    $ret = array(
+      'camera' => '',
+      'shutter_speed' => '',
+      'iso' => '',
+      'taken' => '',
+      'taken_timestamp' => 0,
+    );
+
+    $exif = exif_read_data($path, 0, true);
+
+    if (!$exif || !is_array($exif)) {
+      return $ret;
+    }
+
+    if (isset($exif['IFD0']) && isset($exif['IFD0']['Model'])) {
+      $ret['camera'] = $exif['IFD0']['Model'];
+
+      if (strtolower($ret['camera']) === 'ilce-7') {
+        $ret['camera'] = 'Sony a7';
+      }
+    }
+
+    if (isset($exif['EXIF']) && is_array($exif['EXIF'])) {
+      $exif = $exif['EXIF'];
+    }
+
+    if (isset($exif['ExposureTime']) && preg_match('#^\d++(?:/\d++)?$#', $exif['ExposureTime'])) {
+      $ret['shutter_speed'] = $exif['ExposureTime'];
+    }
+
+    if (isset($exif['ISOSpeedRatings']) && preg_match('#^\d++$#', $exif['ISOSpeedRatings'])) {
+      $ret['iso'] = $exif['ISOSpeedRatings'];
+    }
+
+    if (isset($exif['DateTimeOriginal']) && preg_match('#^(\d{4}):(\d{2}):(\d{2})\s+(\d+):(\d+):(\d+)#ui', $exif['DateTimeOriginal'], $data)) {
+      $ret['taken'] = "{$data[1]}.{$data[2]}.{$data[3]} {$data[4]}:{$data[5]}:{$data[6]}";
+      $ret['taken_timestamp'] = mktime($data[4], $data[5], $data[6], $data[2], $data[3], $data[1]);
     }
 
     return $ret;
